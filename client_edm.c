@@ -44,6 +44,8 @@ static int edm_write_haproxy_file(char edm_ip[IP_ADDRESS_STR_LENGTH])
 		char cmd[256]={0};
 		sprintf(cmd,"sed -i 's/.*acl.*$/& %s/g' %s",edm_ip,HAPROXY_CFG_FILE);
 		system(cmd);
+
+		system("service haproxy reload");
 	}
 
 	tools_free(buf);
