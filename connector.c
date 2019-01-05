@@ -16,7 +16,7 @@ static int g_is_service = 1;
 
 void *connector(void *param);
 
-int g_edm_port = 1235;
+int g_edm_port = 12308;
 
 volatile static int g_connector_quit;
 void connector_quit(IN int sig)

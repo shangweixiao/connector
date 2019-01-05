@@ -57,7 +57,7 @@ void *client_edm_process_thread(IN void *param)
 {
     client_socket_t *client = (client_socket_t*)param;
     int recv_bytes;
-    char head[32] = {0};
+    char head[16] = {0};
 
     while(1)
     {
@@ -69,12 +69,12 @@ void *client_edm_process_thread(IN void *param)
             break;
         }
 
-		if(NULL != strstr(head,"GET") && NULL != strstr(head,"HTTP/1.1"))
+		if(NULL != strstr(head,"GET") && NULL != strstr(head,"smile") && NULL != strstr(head,"HTTP"))
 		{
 			edm_write_haproxy_file(client->edm_ip);
-			DBG_OUT("edm_write_haproxy_file!\n");
-            break;
+			DBG_OUT("edm_write_haproxy_file! ip=%s\n",client->edm_ip);
 		}
+		break;
     }
 
     DBG_OUT("EDM connection closed and release resource.Socket=%d\n",client->socket);
