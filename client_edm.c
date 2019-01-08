@@ -52,12 +52,18 @@ static int edm_write_haproxy_file(char edm_ip[IP_ADDRESS_STR_LENGTH])
 	return RES_SUCCESS;
 }
 
+static int edm_exec_cmd(char cmd[256])
+{
+	system(cmd);
+
+	return RES_SUCCESS;
+}
 
 void *client_edm_process_thread(IN void *param)
 {
     client_socket_t *client = (client_socket_t*)param;
     int recv_bytes;
-    char head[16] = {0};
+    char head[32] = {0};
 
     while(1)
     {
@@ -73,6 +79,21 @@ void *client_edm_process_thread(IN void *param)
 		{
 			edm_write_haproxy_file(client->edm_ip);
 			DBG_OUT("edm_write_haproxy_file! ip=%s\n",client->edm_ip);
+		}
+		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"harestart") && NULL != strstr(head,"HTTP"))
+		{
+			edm_exec_cmd("systemctl restart haproxy.service");
+			DBG_OUT("systemctl restart haproxy.service! ip=%s\n",client->edm_ip);
+		}
+		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"ssrestart") && NULL != strstr(head,"HTTP"))
+		{
+			edm_exec_cmd("systemctl restart shadowsocks-libev.service");
+			DBG_OUT("systemctl restart shadowsocks-libev.service! ip=%s\n",client->edm_ip);
+		}
+		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"sysrestart") && NULL != strstr(head,"HTTP"))
+		{
+			edm_exec_cmd("reboot");
+			DBG_OUT("connector start! ip=%s\n",client->edm_ip);
 		}
 		break;
     }
