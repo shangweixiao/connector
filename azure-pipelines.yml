@@ -11,6 +11,6 @@ pool:
 
 steps:
 - script:
-    sudo apt-get install uuid-dev|
+    sudo apt-get install uuid-dev
     make
   displayName: 'make'
