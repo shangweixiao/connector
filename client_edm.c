@@ -10,12 +10,19 @@
 #include "threadpool.h"
 #include "tools.h"
 
-typedef struct __client_socket__ client_socket_t;
-struct __client_socket__
+#define CONNECTOR_CFG_FILE "/etc/connector/connector.cfg"
+
+typedef struct __connector_cfg__
+{
+	char key[16];
+	char val[256];
+}connect_cfg_t;
+
+typedef struct __client_socket__
 {
     socket_t socket;
     char edm_ip[IP_ADDRESS_STR_LENGTH];
-};
+} client_socket_t;
 
 #define HAPROXY_CFG_FILE "/etc/haproxy/haproxy.cfg"
 static int edm_write_haproxy_file(char edm_ip[IP_ADDRESS_STR_LENGTH])
@@ -58,12 +65,44 @@ static int edm_exec_cmd(char cmd[256])
 
 	return RES_SUCCESS;
 }
+static char g_password[3][36] = {0};
+void *client_edm_generate_password(IN void *param)
+{
+	time_t t;
+	struct tm *ptm;
+	
+    char buf[64] = {0};
+    int fd[2];
+    int backfd;
+	pipe(fd);
+	char cmd[64] = {0};
+	while(1)
+	{
+		t = time(NULL);
+		ptm = gmtime(&t);
+
+		backfd=dup(STDOUT_FILENO);
+		dup2(fd[1],STDOUT_FILENO);
+
+		sprintf(cmd,"echo -n %4d%02d%02d%02d%02d%s | md5sum",ptm->tm_year+1900,ptm->tm_mon+1,ptm->tm_mday,ptm->tm_hour,ptm->tm_min,param);
+		system(cmd);
+		read(fd[0],buf,sizeof(buf));
+
+		dup2(backfd,STDOUT_FILENO);
+
+		memcpy(&g_password[ptm->tm_min%3][0],buf,strlen(buf));
+		memset(buf,0,sizeof(buf));
+
+		sleep(60);
+	}
+
+}
 
 void *client_edm_process_thread(IN void *param)
 {
     client_socket_t *client = (client_socket_t*)param;
     int recv_bytes;
-    char head[32] = {0};
+    char head[64] = {0};
 
     while(1)
     {
@@ -75,27 +114,33 @@ void *client_edm_process_thread(IN void *param)
             break;
         }
 
-		if(NULL != strstr(head,"GET") && NULL != strstr(head,"smile") && NULL != strstr(head,"HTTP"))
+		if(NULL != strstr(head,"GET")  && NULL != strstr(head,"HTTP"))
+		{
+			DBG_OUT("IT IS NOT A HTTP GET REQUEST! ip=%s\n",client->edm_ip);
+			break;
+		}
+
+		if(NULL != strstr(head,"smile"))
 		{
 			edm_write_haproxy_file(client->edm_ip);
 			DBG_OUT("edm_write_haproxy_file! ip=%s\n",client->edm_ip);
 		}
-		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"harestart") && NULL != strstr(head,"HTTP"))
+		else if(NULL != strstr(head,"harestart"))
 		{
 			edm_exec_cmd("systemctl restart haproxy.service");
 			DBG_OUT("systemctl restart haproxy.service! ip=%s\n",client->edm_ip);
 		}
-		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"ssrestart") && NULL != strstr(head,"HTTP"))
+		else if(NULL != strstr(head,"ssrestart"))
 		{
 			edm_exec_cmd("systemctl restart shadowsocks-libev.service");
 			DBG_OUT("systemctl restart shadowsocks-libev.service! ip=%s\n",client->edm_ip);
 		}
-		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"sysrestart") && NULL != strstr(head,"HTTP"))
+		else if(NULL != strstr(head,"sysrestart"))
 		{
 			edm_exec_cmd("reboot");
 			DBG_OUT("connector start! ip=%s\n",client->edm_ip);
 		}
-		else if(NULL != strstr(head,"GET") && NULL != strstr(head,"clearip") && NULL != strstr(head,"HTTP"))
+		else if(NULL != strstr(head,"clearip"))
 		{
 			edm_exec_cmd("sed -i 's/.*acl.*$/\\tacl allow_ip src 127\\.0\\.0\\.1/g' /etc/haproxy/haproxy.cfg");
 			DBG_OUT("clear haproxy ips! ip=%s\n",client->edm_ip);
@@ -152,8 +197,14 @@ void *client_edm_thread(IN void *param)
     pthread_exit(NULL);
 }
 
+void read_connector_cfg_file(char *file)
+{
+	
+}
+
 int client_edm_init()
 {
+	read_connector_cfg_file(CONNECTOR_CFG_FILE);
 	threadpool_add_task(client_edm_thread,NULL);
 }
 
