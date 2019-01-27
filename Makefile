@@ -35,7 +35,7 @@ CXXFLAGS :=
 CXXFLAGS += 
 
 # The library and the link options ( C and C++ common). Need libuuid-deve,openldap-devel,curl-devel
-LDFLAGS   := -lz -lm -luuid -lpthread
+LDFLAGS   := -lz -lm -luuid -lpthread -lcrypto
 LDFLAGS    += 
 
 ## Implict Section: change the following only when necessary.

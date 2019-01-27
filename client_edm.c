@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <stdlib.h>
+#include <openssl/md5.h>
 
 #include "connector.h"
 #include "log.h"
@@ -65,37 +66,42 @@ static int edm_exec_cmd(char cmd[256])
 
 	return RES_SUCCESS;
 }
-static char g_password[3][36] = {0};
+
+#define MD5_VAL_BYTES  16
+#define MD5_STRING_LENGTH 32
+static char g_password[3][MD5_STRING_LENGTH + 1] = {0};
 void *client_edm_generate_password(IN void *param)
 {
 	time_t t;
 	struct tm *ptm;
-	
-    char buf[64] = {0};
-    int fd[2];
-    int backfd;
-	pipe(fd);
-	char cmd[64] = {0};
+	char d[MD5_VAL_BYTES] = {0};
+	MD5_CTX x;
+	char password[64] = {0};
+	int length;
+	char md5[MD5_STRING_LENGTH] = {0};
+	int i;
+
 	while(1)
 	{
 		t = time(NULL);
 		ptm = gmtime(&t);
 
-		backfd=dup(STDOUT_FILENO);
-		dup2(fd[1],STDOUT_FILENO);
+		length = snprintf(password,sizeof(password),"%4d%02d%02d%02d%02d%s",ptm->tm_year+1900,ptm->tm_mon+1,ptm->tm_mday,ptm->tm_hour,ptm->tm_min,param);
+		MD5_Init(&x);
+		MD5_Update(&x,password,length);
+		MD5_Final(d,&x);
+		
+		for(i=0;i<MD5_VAL_BYTES;i++)
+		{
+			sprintf(&md5[i*2],"%02X",(unsigned char)d[i]);
+		}
 
-		sprintf(cmd,"echo -n %4d%02d%02d%02d%02d%s | md5sum",ptm->tm_year+1900,ptm->tm_mon+1,ptm->tm_mday,ptm->tm_hour,ptm->tm_min,param);
-		system(cmd);
-		read(fd[0],buf,sizeof(buf));
-
-		dup2(backfd,STDOUT_FILENO);
-
-		memcpy(&g_password[ptm->tm_min%3][0],buf,strlen(buf));
-		memset(buf,0,sizeof(buf));
-
-		sleep(60);
+		memcpy(&g_password[ptm->tm_min%3][0],md5,MD5_STRING_LENGTH);
+		memset(md5,0,sizeof(md5));
+		
+		printf("%s",&g_password[ptm->tm_min%3][0]);
+		sleep(6);
 	}
-
 }
 
 void *client_edm_process_thread(IN void *param)
@@ -190,21 +196,16 @@ void *client_edm_thread(IN void *param)
 
         client_socket->socket = client_fd;
 
-        DBG_OUT("Recive a edm connection.Socket=%d,IP=%s\n",client_fd,client_socket->edm_ip);
         threadpool_add_task(client_edm_process_thread,client_socket);
     }
 
     pthread_exit(NULL);
 }
 
-void read_connector_cfg_file(char *file)
-{
-	
-}
-
 int client_edm_init()
 {
-	read_connector_cfg_file(CONNECTOR_CFG_FILE);
+
+	threadpool_add_task(client_edm_generate_password,"nihao029");
 	threadpool_add_task(client_edm_thread,NULL);
 }
 
