@@ -150,19 +150,12 @@ int tcp_recv_select(IN socket_t socket)
             return -1;
 
         case 0: // timeout
-            if(!tcp_is_socket_connected(socket))
+            if(0 >= num)
             {
-                if(0 >= num)
-                {
-                    DBG_OUT("ERROR:Socket(%d) timeout!\n",socket);
-                    return -1;
-                }
-                num -= 1;
+                DBG_OUT("ERROR:Socket(%d) timeout!\n",socket);
+                return -1;
             }
-            else
-            {
-                num = 12;
-            }
+            num -= 1;
             continue;
         }
 
