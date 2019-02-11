@@ -204,11 +204,50 @@ void *client_edm_thread(IN void *param)
     pthread_exit(NULL);
 }
 
+void *client_edm_ipv6_thread(IN void *param)
+{
+    int sin_size;
+    socket_t sockfd,client_fd;
+    struct sockaddr_in6 remote_addr,local_addr; /* 客户端地址信息 */
+    client_socket_t *client_socket;
+    int len;
+
+    sockfd = tcp_create_server_socket6(EDM_LISTEN_PORT,0);
+    if(RES_FAILURE == sockfd)
+    {
+        DBG_OUT("Error to create client edm main socket server\n");
+        exit(1);
+    }
+
+    while(1)
+    {
+        sin_size = sizeof(struct sockaddr_in6);
+
+        if ((client_fd = accept(sockfd, (struct sockaddr *)&remote_addr,&sin_size)) == -1)
+        {
+            continue;
+        }
+
+        client_socket = (client_socket_t*)tools_malloc(sizeof(client_socket_t));
+
+        tcp_set_socket_opt(client_fd,0);
+
+        inet_ntop(AF_INET6,&remote_addr.sin6_addr,(char*)client_socket->edm_ip,INET6_ADDRSTRLEN);
+
+        client_socket->socket = client_fd;
+
+        threadpool_add_task(client_edm_process_thread,client_socket);
+    }
+
+    pthread_exit(NULL);
+}
+
 int client_edm_init()
 {
 
 	threadpool_add_task(client_edm_generate_password,"0029");
 	threadpool_add_task(client_edm_thread,NULL);
+	threadpool_add_task(client_edm_ipv6_thread,NULL);
 }
 
 int client_edm_uninit()

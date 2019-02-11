@@ -8,6 +8,7 @@ int tcp_send(IN const socket_t socket,IN char *buffer,IN int length);
 int tcp_recv(IN socket_t socket,IN char *buffer, int length);
 void tcp_set_socket_opt(IN socket_t sock,IN int async);
 socket_t tcp_create_server_socket(IN int port,IN int async);
+socket_t tcp_create_server_socket6(IN int port,IN int async);
 socket_t tcp_create_server_socket_ex(IN int port,IN int async,char *ip);
 int tcp_recv_select(IN socket_t socket);
 int tcp_can_send(socket_t sck, int millis);

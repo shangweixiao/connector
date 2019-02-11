@@ -22,15 +22,6 @@ int tcp_is_socket_connected(IN socket_t socket)
 {
     int len;
     int res,val;
-    struct sockaddr_in sa;
-
-    len = sizeof(sa);
-    res = getpeername(socket, (struct sockaddr *)&sa, &len);
-    if(0 != res)
-    {
-        DBG_OUT("Socket(%d) break.(getpeername)Error No:%d\n",socket,TCP_ERRNO);
-        return RES_FALSE;
-    }
 
     len=sizeof(int);
     res = getsockopt(socket,SOL_SOCKET, SO_ERROR,(char *) &val, &len);
@@ -366,4 +357,42 @@ int tcp_get_peer_name(IN socket_t socket,OUT char ip[IP_ADDRESS_STR_LENGTH])
 		return RES_FAILURE;
 	}
 	return RES_SUCCESS;
+}
+
+socket_t tcp_create_server_socket6(IN int port,IN int async)
+{
+    socket_t sockfd;
+    struct sockaddr_in6 my_addr; /* 本机地址信息 */
+	int on = 1;
+
+    // 主线程，监听命令端口
+    if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) == -1)
+    {
+        DBG_OUT("Error creating socket!\n");
+        return(RES_FAILURE);
+    }
+
+
+	setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+    setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,(const char*)&on,sizeof(int));
+
+    tcp_set_socket_opt(sockfd,async);
+
+	memset(&my_addr, 0, sizeof(struct sockaddr_in6));
+    my_addr.sin6_family=AF_INET6;
+    my_addr.sin6_port=htons(port);
+
+    if (bind(sockfd, (struct sockaddr *)&my_addr, sizeof(my_addr)) == -1)
+    {
+        DBG_OUT("Error binding socket!\n");
+        DBG_OUT("strerror(errno)=%s\n",strerror(errno));
+        DBG_OUT("errvalue=%d\n",errno);
+        return(RES_FAILURE);
+    }
+    if (listen(sockfd, MAX_CONNECTION) == -1)
+    {
+        DBG_OUT("Error listening socket!\n");
+        return(RES_FAILURE);
+    }
+    return sockfd;
 }
