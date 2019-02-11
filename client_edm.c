@@ -11,14 +11,6 @@
 #include "threadpool.h"
 #include "tools.h"
 
-#define CONNECTOR_CFG_FILE "/etc/connector/connector.cfg"
-
-typedef struct __connector_cfg__
-{
-	char key[16];
-	char val[256];
-}connect_cfg_t;
-
 typedef struct __client_socket__
 {
     socket_t socket;
@@ -99,8 +91,8 @@ void *client_edm_generate_password(IN void *param)
 		memcpy(&g_password[ptm->tm_min%3][0],md5,MD5_STRING_LENGTH);
 		memset(md5,0,sizeof(md5));
 		
-		printf("%s",&g_password[ptm->tm_min%3][0]);
-		sleep(6);
+		//printf("%s\n",&g_password[ptm->tm_min%3][0]);
+		sleep(60);
 	}
 }
 
@@ -108,30 +100,27 @@ void *client_edm_process_thread(IN void *param)
 {
     client_socket_t *client = (client_socket_t*)param;
     int recv_bytes;
-    char head[64] = {0};
+    char head[128] = {0};
 
     while(1)
     {
         // 接收消息
-        recv_bytes = tcp_recv(client->socket,head,sizeof(head));
+        recv_bytes = tcp_recv(client->socket,head,sizeof(head)-1);
         if(RES_FAILURE == recv_bytes)
         {
-            DBG_OUT("socket recive head error! Quit!\n");
+            DBG_OUT("socket recive head error! ip=%s\n",client->edm_ip);
             break;
         }
 
-		if(NULL != strstr(head,"GET")  && NULL != strstr(head,"HTTP"))
+		if(NULL == strstr(head,"GET")  || NULL == strstr(head,"HTTP"))
 		{
-			DBG_OUT("IT IS NOT A HTTP GET REQUEST! ip=%s\n",client->edm_ip);
+			DBG_OUT("IT IS NOT A HTTP GET REQUEST! ip=%s head = %s\n",client->edm_ip,head);
 			break;
 		}
 
-		if(NULL != strstr(head,"smile"))
-		{
-			edm_write_haproxy_file(client->edm_ip);
-			DBG_OUT("edm_write_haproxy_file! ip=%s\n",client->edm_ip);
-		}
-		else if(NULL != strstr(head,"harestart"))
+		DBG_OUT("\n%s\n",head);
+
+		if(NULL != strstr(head,"harestart"))
 		{
 			edm_exec_cmd("systemctl restart haproxy.service");
 			DBG_OUT("systemctl restart haproxy.service! ip=%s\n",client->edm_ip);
@@ -151,10 +140,23 @@ void *client_edm_process_thread(IN void *param)
 			edm_exec_cmd("sed -i 's/.*acl.*$/\\tacl allow_ip src 127\\.0\\.0\\.1/g' /etc/haproxy/haproxy.cfg");
 			DBG_OUT("clear haproxy ips! ip=%s\n",client->edm_ip);
 		}
+		else
+		{
+			int i;
+			for(i=0;i<3;i++)
+			{
+				if(MD5_STRING_LENGTH == strlen(g_password[i]) && NULL != strstr(head,&g_password[i][0]))
+				{
+					edm_write_haproxy_file(client->edm_ip);
+					memset(&g_password[i][0],0,sizeof(g_password[i]));
+					DBG_OUT("edm_write_haproxy_file! ip=%s\n",client->edm_ip);
+					break;
+				}
+			}
+		}
 		break;
     }
 
-    DBG_OUT("EDM connection closed and release resource.Socket=%d\n",client->socket);
 	CLOSE_SOCKET(client->socket);
 	tools_free(client);
     
@@ -205,7 +207,7 @@ void *client_edm_thread(IN void *param)
 int client_edm_init()
 {
 
-	threadpool_add_task(client_edm_generate_password,"nihao029");
+	threadpool_add_task(client_edm_generate_password,"0029");
 	threadpool_add_task(client_edm_thread,NULL);
 }
 
