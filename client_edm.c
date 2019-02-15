@@ -100,11 +100,12 @@ void *client_edm_process_thread(IN void *param)
 {
     client_socket_t *client = (client_socket_t*)param;
     int recv_bytes;
-    char head[128] = {0};
+    char head[1024] = {0};
 
     while(1)
     {
         // 接收消息
+        memset(&head[0],0,sizeof(head));
         recv_bytes = tcp_recv(client->socket,head,sizeof(head)-1);
         if(RES_FAILURE == recv_bytes)
         {

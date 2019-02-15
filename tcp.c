@@ -119,12 +119,12 @@ int tcp_send(IN const socket_t socket,IN char *buffer,IN int length)
     return RES_SUCCESS;
 }
 
-/* Returns 0 success, -1 error */
+/* Returns 0 success, -1 error -2 timeout */
 int tcp_recv_select(IN socket_t socket)
 {
     fd_set rfds, wfds;
     struct timeval tv;
-    int num = 12;
+    int num = 10;
 
     //先检测一下socket是否正确
     if(!tcp_is_socket_connected(socket))
@@ -140,7 +140,7 @@ int tcp_recv_select(IN socket_t socket)
         FD_SET(socket, &rfds);
 
         /* default timeout */
-        tv.tv_sec = 5;
+        tv.tv_sec = 1;
         tv.tv_usec = 0;
 
         switch (select(socket+1, &rfds, NULL, NULL, &tv))
@@ -153,7 +153,7 @@ int tcp_recv_select(IN socket_t socket)
             if(0 >= num)
             {
                 DBG_OUT("ERROR:Socket(%d) timeout!\n",socket);
-                return -1;
+                return -2;
             }
             num -= 1;
             continue;
@@ -169,14 +169,20 @@ int tcp_recv_select(IN socket_t socket)
 int tcp_recv(IN socket_t socket,IN char *buffer, int length)
 {
     int rcvd = 0;
+	int ret;
 
     while (length > 0)
     {
-        if (-1 == tcp_recv_select(socket))
+		ret = tcp_recv_select(socket);
+        if (-1 == ret)
         {
             /* socket error */
             DBG_OUT("ERROR:Socket(%d) recv: %s\n",socket,TCP_STRERROR);
             return RES_FAILURE;
+        } 
+		else if (-2 == ret) // timeout
+        {
+			return rcvd;
         }
 
         rcvd = recv(socket, buffer, length, 0);
