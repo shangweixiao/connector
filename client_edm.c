@@ -139,6 +139,7 @@ void *client_edm_process_thread(IN void *param)
 		else if(NULL != strstr(head,"clearip"))
 		{
 			edm_exec_cmd("sed -i 's/.*acl.*$/\\tacl allow_ip src 127\\.0\\.0\\.1/g' /etc/haproxy/haproxy.cfg");
+			system("service haproxy reload");
 			DBG_OUT("clear haproxy ips! ip=%s\n",client->edm_ip);
 		}
 		else
