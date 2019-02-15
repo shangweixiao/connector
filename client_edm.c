@@ -247,7 +247,7 @@ void *client_edm_ipv6_thread(IN void *param)
 int client_edm_init()
 {
 
-	threadpool_add_task(client_edm_generate_password,"0029");
+	threadpool_add_task(client_edm_generate_password,"0029787");
 	threadpool_add_task(client_edm_thread,NULL);
 	threadpool_add_task(client_edm_ipv6_thread,NULL);
 }
