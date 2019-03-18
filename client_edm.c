@@ -42,7 +42,7 @@ static int edm_write_haproxy_file(char edm_ip[IP_ADDRESS_STR_LENGTH])
 	if(NULL == strstr(buf,edm_ip))
 	{
 		char cmd[256]={0};
-		sprintf(cmd,"sed -i 's/.*acl.*$/& %s/g' %s",edm_ip,HAPROXY_CFG_FILE);
+		sprintf(cmd,"sed -i 's/.*acl allow_ip src.*$/& %s/g' %s",edm_ip,HAPROXY_CFG_FILE);
 		system(cmd);
 
 		system("service haproxy reload");
@@ -138,7 +138,7 @@ void *client_edm_process_thread(IN void *param)
 		}
 		else if(NULL != strstr(head,"clearip"))
 		{
-			edm_exec_cmd("sed -i 's/.*acl.*$/\\tacl allow_ip src 127\\.0\\.0\\.1/g' /etc/haproxy/haproxy.cfg");
+			edm_exec_cmd("sed -i 's/.*acl allow_ip src.*$/\\tacl allow_ip src 127\\.0\\.0\\.1/g' /etc/haproxy/haproxy.cfg");
 			system("service haproxy reload");
 			DBG_OUT("clear haproxy ips! ip=%s\n",client->edm_ip);
 		}
